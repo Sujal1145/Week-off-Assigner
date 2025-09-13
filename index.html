@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week Off Assigner Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800 antialiased">
+
+    <div id="app" class="flex flex-col md:flex-row min-h-screen">
+        <aside class="w-full md:w-[45vw] p-6 bg-gray-50 flex flex-col space-y-6 border-r border-gray-200">
+            
+            <div class="h-[30vh] min-h-[300px] p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">Week Off Assigner ✨</h1>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="file-upload" class="text-sm font-bold text-gray-600 block mb-2">1. Upload Employee List (.csv, .xlsx)</label>
+                        <input type="file" id="file-upload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 transition-colors" accept=".csv, .xlsx, .xls, .xlsb">
+                    </div>
+                    
+                    <div>
+                        <label for="month-select" class="text-sm font-bold text-gray-600 block mb-2">2. Choose Month</label>
+                        <select id="month-select" class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition">
+                            </select>
+                    </div>
+                    
+                    <button id="assign-btn" class="w-full bg-violet-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        Assign Week Offs
+                    </button>
+                    <div id="loader" class="text-center hidden">
+                        <p class="text-violet-600 font-semibold">Assigning week offs, please wait...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboard-controls" class="flex-grow p-6 bg-white rounded-xl border border-gray-200 shadow-sm hidden">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Dashboard Controls 📊</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="team-filter" class="text-sm font-bold text-gray-600 block mb-2">Filter by Team</label>
+                        <select id="team-filter" class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition">
+                            </select>
+                    </div>
+                    
+                    <button id="summary-btn" class="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-300 transition-transform transform hover:scale-105">
+                        View Detailed Summary
+                    </button>
+                    
+                    <button id="download-btn" class="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-transform transform hover:scale-105 disabled:bg-gray-400">
+                        Download as CSV
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <main id="display-area" class="w-full flex-grow p-6">
+            <div id="placeholder" class="h-full flex flex-col items-center justify-center text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                
+                <h2 class="text-2xl font-bold text-gray-500 mt-4">Your Dashboard Awaits</h2>
+                <p class="text-gray-400 mt-2">Upload a file and click "Assign" to see the magic happen.</p>
+            </div>
+            
+            <div id="table-view" class="hidden h-full">
+                <h2 id="table-title" class="text-3xl font-bold text-gray-900 mb-4">Week Off Schedule</h2>
+                <div class="overflow-auto bg-white rounded-xl border border-gray-200 shadow-sm" style="max-height: calc(100vh - 120px);">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 font-bold">Employee</th>
+                                <th scope="col" class="px-6 py-3 font-bold">Team</th>
+                                <th scope="col" class="px-6 py-3 font-bold">Week Off 1</th>
+                                <th scope="col" class="px-6 py-3 font-bold">Week Off 2</th>
+                                <th scope="col" class="px-6 py-3 font-bold">Week Off 3</th>
+                                <th scope="col" class="px-6 py-3 font-bold">Week Off 4</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="summary-view" class="hidden h-full flex flex-col space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+                    <div>
+                        <h3 class="font-bold text-gray-700 mb-2">Filter by Team</h3>
+                        <div id="summary-team-filter" class="flex flex-wrap gap-x-4 gap-y-2">
+                            <!-- Team checkboxes will be inserted here -->
+                        </div>
+                    </div>
+                    <div class="flex items-start justify-end">
+                        <input type="date" id="summary-date-picker" class="p-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500">
+                    </div>
+                </div>
+
+                <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                        <h3 class="font-bold text-gray-700 mb-2 text-center flex-shrink-0">Employee Status</h3>
+                        <div class="flex-grow grid grid-cols-2 gap-4 min-h-0">
+                            <div class="flex flex-col">
+                                <h4 class="font-semibold text-green-600 bg-green-50 p-2 rounded text-center flex-shrink-0">Working</h4>
+                                <ul id="working-employees" class="mt-2 space-y-1 text-sm text-gray-600 p-2 overflow-y-auto flex-grow min-h-0"></ul>
+                            </div>
+                            <div class="flex flex-col">
+                                <h4 class="font-semibold text-amber-600 bg-amber-50 p-2 rounded text-center flex-shrink-0">On Week Off</h4>
+                                <ul id="on-leave-employees" class="mt-2 space-y-1 text-sm text-gray-600 p-2 overflow-y-auto flex-grow min-h-0"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col">
+                         <div class="flex justify-between items-center mb-2 flex-shrink-0">
+                            <h3 class="font-bold text-gray-700">Daily Summary Chart</h3>
+                            <button id="toggle-chart-btn" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-1 px-3 rounded-full transition">
+                                Show Bar Chart
+                            </button>
+                        </div>
+                        <div class="flex-grow relative min-h-0">
+                            <canvas id="summary-chart-canvas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const fileUpload = document.getElementById('file-upload');
+            const monthSelect = document.getElementById('month-select');
+            const assignBtn = document.getElementById('assign-btn');
+            const loader = document.getElementById('loader');
+            const dashboardControls = document.getElementById('dashboard-controls');
+            const teamFilter = document.getElementById('team-filter');
+            const summaryBtn = document.getElementById('summary-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const displayArea = document.getElementById('display-area');
+            const placeholder = document.getElementById('placeholder');
+            const tableView = document.getElementById('table-view');
+            const tableTitle = document.getElementById('table-title');
+            const dataTable = document.getElementById('data-table');
+            const summaryView = document.getElementById('summary-view');
+
+            // --- Global State ---
+            let employeeData = [];
+            let processedData = [];
+            let summaryChart = null;
+            let summaryChartType = 'pie';
+
+            // --- Initialization ---
+            const populateMonths = () => {
+                const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                const currentMonth = new Date().getMonth();
+                months.forEach((month, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = month;
+                    if (index === currentMonth) {
+                        option.selected = true;
+                    }
+                    monthSelect.appendChild(option);
+                });
+            };
+
+            populateMonths();
+
+            // --- Event Listeners ---
+            fileUpload.addEventListener('change', handleFileUpload);
+            assignBtn.addEventListener('click', handleAssignWeekOffs);
+            teamFilter.addEventListener('change', renderTable);
+            summaryBtn.addEventListener('click', showSummaryView);
+            downloadBtn.addEventListener('click', downloadCSV);
+
+            // --- File Handling ---
+            function handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (json.length > 0 && 'Employee' in json[0] && 'Team' in json[0]) {
+                        employeeData = json;
+                        alert(`${employeeData.length} employees loaded successfully!`);
+                    } else {
+                        alert('Error: The uploaded file must contain "Employee" and "Team" columns.');
+                        fileUpload.value = '';
+                        employeeData = [];
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+
+            // --- Core Logic: Week Off Assignment ---
+            async function handleAssignWeekOffs() {
+                if (employeeData.length === 0) {
+                    alert('Please upload an employee list first.');
+                    return;
+                }
+                toggleLoading(true);
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const selectedMonth = parseInt(monthSelect.value);
+                const year = new Date().getFullYear();
+                const employeesByTeam = groupBy(employeeData, 'Team');
+                const schedulingGroups = [];
+                let remainingEmployees = [];
+
+                for (const teamName in employeesByTeam) {
+                    const members = employeesByTeam[teamName];
+                    let i = 0;
+                    while (i + 6 <= members.length) {
+                        schedulingGroups.push(members.slice(i, i + 6));
+                        i += 6;
+                    }
+                    if (i < members.length) {
+                        remainingEmployees = remainingEmployees.concat(members.slice(i));
+                    }
+                }
+
+                while (remainingEmployees.length > 0) {
+                    schedulingGroups.push(remainingEmployees.splice(0, 6));
+                }
+
+                const allAssignedData = [];
+                const daysInMonth = new Date(year, selectedMonth + 1, 0).getDate();
+                schedulingGroups.forEach(group => {
+                    group.forEach((employee, index) => {
+                        const assignedDayOfWeek = (index % 6) + 1;
+                        const weekOffsForEmployee = [];
+                        for (let day = 1; day <= daysInMonth; day++) {
+                            if (weekOffsForEmployee.length >= 4) break;
+                            const currentDate = new Date(year, selectedMonth, day);
+                            if (currentDate.getDay() === assignedDayOfWeek) {
+                                weekOffsForEmployee.push(formatDate(currentDate));
+                            }
+                        }
+                        allAssignedData.push({ ...employee, WeekOffs: weekOffsForEmployee });
+                    });
+                });
+
+                processedData = allAssignedData.sort((a, b) => {
+                    if (a.Team < b.Team) return -1;
+                    if (a.Team > b.Team) return 1;
+                    if (a.Employee < b.Employee) return -1;
+                    if (a.Employee > b.Employee) return 1;
+                    return 0;
+                });
+                
+                setupDashboard();
+                toggleLoading(false);
+            }
+
+            // --- Dashboard Setup and Rendering ---
+            function setupDashboard() {
+                dashboardControls.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                const teams = [...new Set(employeeData.map(e => e.Team))];
+                teamFilter.innerHTML = '<option value="all">All Teams</option>';
+                teams.sort().forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team;
+                    option.textContent = team;
+                    teamFilter.appendChild(option);
+                });
+                renderTable();
+            }
+
+            function renderTable() {
+                summaryView.classList.add('hidden');
+                tableView.classList.remove('hidden');
+                downloadBtn.disabled = false;
+                const selectedTeam = teamFilter.value;
+                const filteredData = selectedTeam === 'all' ? processedData : processedData.filter(e => e.Team === selectedTeam);
+                tableTitle.textContent = `Week Off Schedule - ${selectedTeam === 'all' ? 'All Teams' : selectedTeam}`;
+                dataTable.innerHTML = '';
+                if (filteredData.length === 0) {
+                     dataTable.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-500">No data available.</td></tr>`;
+                     return;
+                }
+                filteredData.forEach(emp => {
+                    const row = document.createElement('tr');
+                    row.className = 'bg-white border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${emp.Employee}</td>
+                        <td class="px-6 py-4">${emp.Team}</td>
+                        <td class="px-6 py-4">${emp.WeekOffs[0] || 'N/A'}</td>
+                        <td class="px-6 py-4">${emp.WeekOffs[1] || 'N/A'}</td>
+                        <td class="px-6 py-4">${emp.WeekOffs[2] || 'N/A'}</td>
+                        <td class="px-6 py-4">${emp.WeekOffs[3] || 'N/A'}</td>
+                    `;
+                    dataTable.appendChild(row);
+                });
+            }
+
+            function showSummaryView() {
+                tableView.classList.add('hidden');
+                summaryView.classList.remove('hidden');
+                downloadBtn.disabled = true;
+
+                const teamFilterContainer = document.getElementById('summary-team-filter');
+                const datePicker = document.getElementById('summary-date-picker');
+                const toggleChartBtn = document.getElementById('toggle-chart-btn');
+                teamFilterContainer.innerHTML = '';
+                const teams = [...new Set(employeeData.map(e => e.Team))];
+                
+                const allLabel = document.createElement('label');
+                allLabel.className = 'flex items-center space-x-2 font-semibold cursor-pointer';
+                allLabel.innerHTML = `<input type="checkbox" value="all" class="summary-team-checkbox rounded" checked><span>All Teams</span>`;
+                teamFilterContainer.appendChild(allLabel);
+                
+                teams.sort().forEach(team => {
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center space-x-2 cursor-pointer';
+                    label.innerHTML = `<input type="checkbox" value="${team}" class="summary-team-checkbox rounded" checked><span>${team}</span>`;
+                    teamFilterContainer.appendChild(label);
+                });
+
+                const selectedMonth = parseInt(monthSelect.value);
+                const year = new Date().getFullYear();
+                datePicker.value = new Date(year, selectedMonth, 1).toISOString().split('T')[0];
+
+                teamFilterContainer.onchange = (e) => {
+                    if (e.target.matches('.summary-team-checkbox')) {
+                        const allCheckbox = teamFilterContainer.querySelector('input[value="all"]');
+                        const teamCheckboxes = teamFilterContainer.querySelectorAll('input[value]:not([value="all"])');
+                        if (e.target.value === 'all') {
+                            teamCheckboxes.forEach(cb => cb.checked = e.target.checked);
+                        } else {
+                            allCheckbox.checked = [...teamCheckboxes].every(cb => cb.checked);
+                        }
+                        updateSummaryDashboard();
+                    }
+                };
+                datePicker.onchange = updateSummaryDashboard;
+                toggleChartBtn.onclick = () => {
+                    summaryChartType = summaryChartType === 'pie' ? 'bar' : 'pie';
+                    toggleChartBtn.textContent = summaryChartType === 'pie' ? 'Show Bar Chart' : 'Show Pie Chart';
+                    updateSummaryDashboard();
+                };
+                updateSummaryDashboard();
+            }
+
+            function updateSummaryDashboard() {
+                const datePicker = document.getElementById('summary-date-picker');
+                
+                const parts = datePicker.value.split('-');
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const selectedDate = new Date(year, month, day);
+
+                const selectedDateStr = formatDate(selectedDate);
+                const selectedTeams = [...document.querySelectorAll('#summary-team-filter input:checked')].map(cb => cb.value).filter(val => val !== 'all');
+                const filteredEmployees = processedData.filter(emp => selectedTeams.includes(emp.Team));
+
+                const workingEmployeesList = document.getElementById('working-employees');
+                const onLeaveEmployeesList = document.getElementById('on-leave-employees');
+                workingEmployeesList.innerHTML = '';
+                onLeaveEmployeesList.innerHTML = '';
+
+                let workingCount = 0;
+                let onLeaveCount = 0;
+
+                filteredEmployees.forEach(emp => {
+                    const isOnLeave = emp.WeekOffs.includes(selectedDateStr);
+                    const listItem = document.createElement('li');
+                    listItem.textContent = emp.Employee;
+                    if (isOnLeave) {
+                        onLeaveCount++;
+                        onLeaveEmployeesList.appendChild(listItem);
+                    } else {
+                        workingCount++;
+                        workingEmployeesList.appendChild(listItem);
+                    }
+                });
+                
+                if (filteredEmployees.length === 0) {
+                     workingEmployeesList.innerHTML = '<li class="text-gray-500">No employees selected.</li>';
+                     onLeaveEmployeesList.innerHTML = '';
+                } else if (workingCount === 0) {
+                     workingEmployeesList.innerHTML = '<li class="text-gray-500">All selected are on leave.</li>';
+                } else if (onLeaveCount === 0) {
+                     onLeaveEmployeesList.innerHTML = '<li class="text-gray-500">No one on leave.</li>';
+                }
+
+                const summaryChartCanvas = document.getElementById('summary-chart-canvas');
+                if(summaryChart) summaryChart.destroy();
+                
+                const totalEmployees = workingCount + onLeaveCount;
+                const workingPercentage = totalEmployees > 0 ? (workingCount / totalEmployees) * 100 : 0;
+                const onLeavePercentage = totalEmployees > 0 ? (onLeaveCount / totalEmployees) * 100 : 0;
+
+                summaryChart = new Chart(summaryChartCanvas, {
+                    type: summaryChartType,
+                    data: {
+                        labels: [`Working (${workingCount})`, `On Week Off (${onLeaveCount})`],
+                        datasets: [{
+                            label: 'Employee Status',
+                            data: [workingPercentage, onLeavePercentage],
+                            backgroundColor: ['rgba(16, 185, 129, 0.7)', 'rgba(245, 158, 11, 0.7)'],
+                            borderColor: ['rgba(16, 185, 129, 1)', 'rgba(245, 158, 11, 1)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { 
+                                position: 'bottom' 
+                            },
+                            title: {
+                                display: true,
+                                text: `Status for ${selectedDateStr} - ${totalEmployees} Employee(s) Selected`,
+                                font: { size: 16 }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += `${context.parsed.toFixed(1)}%`;
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: summaryChartType === 'bar' ? {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        } : {}
+                    }
+                });
+            }
+
+            // --- Utility Functions ---
+            function downloadCSV() {
+                const selectedTeam = teamFilter.value;
+                const filteredData = selectedTeam === 'all' ? processedData : processedData.filter(e => e.Team === selectedTeam);
+                let csvContent = "data:text/csv;charset=utf-8,Employee,Team,WeekOff1,WeekOff2,WeekOff3,WeekOff4\r\n";
+                filteredData.forEach(row => {
+                    const weekOffs = row.WeekOffs.concat(Array(4 - row.WeekOffs.length).fill('')); 
+                    const csvRow = [row.Employee, row.Team, ...weekOffs].join(",");
+                    csvContent += csvRow + "\r\n";
+                });
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `week_off_schedule_${selectedTeam}_${monthSelect.options[monthSelect.selectedIndex].text}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            function toggleLoading(isLoading) {
+                if (isLoading) {
+                    assignBtn.disabled = true;
+                    assignBtn.textContent = 'Processing...';
+                    loader.classList.remove('hidden');
+                } else {
+                    assignBtn.disabled = false;
+                    assignBtn.textContent = 'Assign Week Offs';
+                    loader.classList.add('hidden');
+                }
+            }
+            
+            function groupBy(array, key) {
+                return array.reduce((result, currentValue) => {
+                    (result[currentValue[key]] = result[currentValue[key]] || []).push(currentValue);
+                    return result;
+                }, {});
+            }
+
+            function formatDate(date) {
+                const d = new Date(date);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}-${month}-${year}`;
+            }
+        });
+    </script>
+</body>
+</html>
+
