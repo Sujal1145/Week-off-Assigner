@@ -7,6 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -32,7 +35,7 @@
     <div id="app" class="flex flex-col md:flex-row min-h-screen">
         <aside class="w-full md:w-[45vw] p-6 bg-gray-50 flex flex-col space-y-6 border-r border-gray-200">
             
-            <div class="h-[30vh] min-h-[300px] p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
+            <div class="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <h1 class="text-2xl font-bold text-gray-900 mb-4">Week Off Assigner ✨</h1>
                 
                 <div class="space-y-4">
@@ -44,7 +47,18 @@
                     <div>
                         <label for="month-select" class="text-sm font-bold text-gray-600 block mb-2">2. Choose Month</label>
                         <select id="month-select" class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition">
-                            </select>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="holiday-date-picker" class="text-sm font-bold text-gray-600 block mb-2">3. Add Holidays (Optional)</label>
+                        <div class="flex space-x-2">
+                            <input type="date" id="holiday-date-picker" class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition">
+                            <button id="add-holiday-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition shrink-0">Add</button>
+                        </div>
+                        <div id="holiday-list" class="mt-3 text-sm text-gray-600 space-y-1 max-h-24 overflow-y-auto">
+                            <!-- Selected holidays will appear here -->
+                        </div>
                     </div>
                     
                     <button id="assign-btn" class="w-full bg-violet-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-violet-700 focus:outline-none focus:ring-4 focus:ring-violet-300 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed">
@@ -62,7 +76,7 @@
                     <div>
                         <label for="team-filter" class="text-sm font-bold text-gray-600 block mb-2">Filter by Team</label>
                         <select id="team-filter" class="w-full p-2.5 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition">
-                            </select>
+                        </select>
                     </div>
                     
                     <button id="summary-btn" class="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 focus:outline-none focus:ring-4 focus:ring-teal-300 transition-transform transform hover:scale-105">
@@ -78,9 +92,11 @@
 
         <main id="display-area" class="w-full flex-grow p-6">
             <div id="placeholder" class="h-full flex flex-col items-center justify-center text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-                
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-20 h-20 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 <h2 class="text-2xl font-bold text-gray-500 mt-4">Your Dashboard Awaits</h2>
-                <p class="text-gray-400 mt-2">Upload a file and click "Assign" to see the magic happen.</p>
+                <p class="text-gray-400 mt-2">Upload a file, add holidays, and click "Assign" to see the magic happen.</p>
             </div>
             
             <div id="table-view" class="hidden h-full">
@@ -98,7 +114,7 @@
                             </tr>
                         </thead>
                         <tbody id="data-table">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -118,14 +134,14 @@
 
                 <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0">
                     <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
-                        <h3 class="font-bold text-gray-700 mb-2 text-center flex-shrink-0">Employee Status</h3>
+                        <h3 id="employee-status-title" class="font-bold text-gray-700 mb-2 text-center flex-shrink-0">Employee Status</h3>
                         <div class="flex-grow grid grid-cols-2 gap-4 min-h-0">
                             <div class="flex flex-col">
                                 <h4 class="font-semibold text-green-600 bg-green-50 p-2 rounded text-center flex-shrink-0">Working</h4>
                                 <ul id="working-employees" class="mt-2 space-y-1 text-sm text-gray-600 p-2 overflow-y-auto flex-grow min-h-0"></ul>
                             </div>
                             <div class="flex flex-col">
-                                <h4 class="font-semibold text-amber-600 bg-amber-50 p-2 rounded text-center flex-shrink-0">On Week Off</h4>
+                                <h4 class="font-semibold text-amber-600 bg-amber-50 p-2 rounded text-center flex-shrink-0">On Leave</h4>
                                 <ul id="on-leave-employees" class="mt-2 space-y-1 text-sm text-gray-600 p-2 overflow-y-auto flex-grow min-h-0"></ul>
                             </div>
                         </div>
@@ -151,6 +167,9 @@
             // --- DOM Element References ---
             const fileUpload = document.getElementById('file-upload');
             const monthSelect = document.getElementById('month-select');
+            const holidayDatePicker = document.getElementById('holiday-date-picker');
+            const addHolidayBtn = document.getElementById('add-holiday-btn');
+            const holidayListContainer = document.getElementById('holiday-list');
             const assignBtn = document.getElementById('assign-btn');
             const loader = document.getElementById('loader');
             const dashboardControls = document.getElementById('dashboard-controls');
@@ -167,6 +186,7 @@
             // --- Global State ---
             let employeeData = [];
             let processedData = [];
+            let holidays = [];
             let summaryChart = null;
             let summaryChartType = 'pie';
 
@@ -189,6 +209,9 @@
 
             // --- Event Listeners ---
             fileUpload.addEventListener('change', handleFileUpload);
+            monthSelect.addEventListener('change', clearHolidays);
+            addHolidayBtn.addEventListener('click', handleAddHoliday);
+            holidayListContainer.addEventListener('click', handleRemoveHoliday);
             assignBtn.addEventListener('click', handleAssignWeekOffs);
             teamFilter.addEventListener('change', renderTable);
             summaryBtn.addEventListener('click', showSummaryView);
@@ -219,6 +242,63 @@
                 reader.readAsArrayBuffer(file);
             }
 
+            // --- Holiday Management ---
+            function handleAddHoliday() {
+                const dateValue = holidayDatePicker.value;
+                if (!dateValue) {
+                    alert('Please select a date to add as a holiday.');
+                    return;
+                }
+                const selectedMonth = parseInt(monthSelect.value);
+                const holidayDate = new Date(dateValue);
+                holidayDate.setMinutes(holidayDate.getMinutes() + holidayDate.getTimezoneOffset());
+                if (holidayDate.getMonth() !== selectedMonth) {
+                    alert('Please select a holiday within the chosen month.');
+                    return;
+                }
+                const formattedDate = formatDate(holidayDate);
+                if (!holidays.includes(formattedDate)) {
+                    holidays.push(formattedDate);
+                    holidays.sort((a, b) => new Date(a.split('-').reverse().join('-')) - new Date(b.split('-').reverse().join('-')));
+                    renderHolidays();
+                } else {
+                    alert('This holiday has already been added.');
+                }
+                holidayDatePicker.value = '';
+            }
+
+            function renderHolidays() {
+                holidayListContainer.innerHTML = '';
+                if (holidays.length > 0) {
+                    const title = document.createElement('p');
+                    title.className = 'font-semibold mb-1';
+                    title.textContent = 'Declared Holidays:';
+                    holidayListContainer.appendChild(title);
+                }
+                holidays.forEach(dateStr => {
+                    const holidayEl = document.createElement('div');
+                    holidayEl.className = 'flex justify-between items-center bg-violet-50 p-1.5 rounded';
+                    holidayEl.innerHTML = `
+                        <span>${dateStr}</span>
+                        <button data-date="${dateStr}" class="remove-holiday-btn text-red-500 hover:text-red-700 font-bold text-lg leading-none px-2">&times;</button>
+                    `;
+                    holidayListContainer.appendChild(holidayEl);
+                });
+            }
+
+            function handleRemoveHoliday(event) {
+                if (event.target.classList.contains('remove-holiday-btn')) {
+                    const dateToRemove = event.target.dataset.date;
+                    holidays = holidays.filter(h => h !== dateToRemove);
+                    renderHolidays();
+                }
+            }
+            
+            function clearHolidays() {
+                holidays = [];
+                renderHolidays();
+            }
+
             // --- Core Logic: Week Off Assignment ---
             async function handleAssignWeekOffs() {
                 if (employeeData.length === 0) {
@@ -245,24 +325,31 @@
                         remainingEmployees = remainingEmployees.concat(members.slice(i));
                     }
                 }
-
                 while (remainingEmployees.length > 0) {
                     schedulingGroups.push(remainingEmployees.splice(0, 6));
                 }
 
                 const allAssignedData = [];
                 const daysInMonth = new Date(year, selectedMonth + 1, 0).getDate();
+                const holidaySet = new Set(holidays);
+
                 schedulingGroups.forEach(group => {
                     group.forEach((employee, index) => {
-                        const assignedDayOfWeek = (index % 6) + 1;
+                        const assignedDayOfWeek = (index % 6) + 1; // 1:Mon, 2:Tue ... 6:Sat
                         const weekOffsForEmployee = [];
+                        
+                        let potentialDates = [];
                         for (let day = 1; day <= daysInMonth; day++) {
-                            if (weekOffsForEmployee.length >= 4) break;
                             const currentDate = new Date(year, selectedMonth, day);
                             if (currentDate.getDay() === assignedDayOfWeek) {
-                                weekOffsForEmployee.push(formatDate(currentDate));
+                                const formattedDate = formatDate(currentDate);
+                                if (!holidaySet.has(formattedDate)) {
+                                    potentialDates.push(formattedDate);
+                                }
                             }
                         }
+                        
+                        weekOffsForEmployee.push(...potentialDates.slice(0, 4));
                         allAssignedData.push({ ...employee, WeekOffs: weekOffsForEmployee });
                     });
                 });
@@ -371,6 +458,7 @@
 
             function updateSummaryDashboard() {
                 const datePicker = document.getElementById('summary-date-picker');
+                const statusTitle = document.getElementById('employee-status-title');
                 
                 const parts = datePicker.value.split('-');
                 const year = parseInt(parts[0], 10);
@@ -389,27 +477,44 @@
 
                 let workingCount = 0;
                 let onLeaveCount = 0;
-
-                filteredEmployees.forEach(emp => {
-                    const isOnLeave = emp.WeekOffs.includes(selectedDateStr);
-                    const listItem = document.createElement('li');
-                    listItem.textContent = emp.Employee;
-                    if (isOnLeave) {
-                        onLeaveCount++;
-                        onLeaveEmployeesList.appendChild(listItem);
-                    } else {
-                        workingCount++;
-                        workingEmployeesList.appendChild(listItem);
-                    }
-                });
                 
-                if (filteredEmployees.length === 0) {
-                     workingEmployeesList.innerHTML = '<li class="text-gray-500">No employees selected.</li>';
-                     onLeaveEmployeesList.innerHTML = '';
-                } else if (workingCount === 0) {
-                     workingEmployeesList.innerHTML = '<li class="text-gray-500">All selected are on leave.</li>';
-                } else if (onLeaveCount === 0) {
-                     onLeaveEmployeesList.innerHTML = '<li class="text-gray-500">No one on leave.</li>';
+                const holidaySet = new Set(holidays);
+                const isGeneralHoliday = holidaySet.has(selectedDateStr);
+
+                if (isGeneralHoliday) {
+                    statusTitle.textContent = "Employee Status (Declared Holiday)";
+                    onLeaveCount = filteredEmployees.length;
+                    workingCount = 0;
+                    filteredEmployees.forEach(emp => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = emp.Employee;
+                        onLeaveEmployeesList.appendChild(listItem);
+                    });
+                     if (filteredEmployees.length === 0) {
+                        onLeaveEmployeesList.innerHTML = '<li class="text-gray-500">No employees selected.</li>';
+                     }
+                } else {
+                    statusTitle.textContent = "Employee Status";
+                    filteredEmployees.forEach(emp => {
+                        const isOnWeekOff = emp.WeekOffs.includes(selectedDateStr);
+                        const listItem = document.createElement('li');
+                        listItem.textContent = emp.Employee;
+                        if (isOnWeekOff) {
+                            onLeaveCount++;
+                            onLeaveEmployeesList.appendChild(listItem);
+                        } else {
+                            workingCount++;
+                            workingEmployeesList.appendChild(listItem);
+                        }
+                    });
+                    
+                    if (filteredEmployees.length === 0) {
+                         workingEmployeesList.innerHTML = '<li class="text-gray-500">No employees selected.</li>';
+                    } else if (workingCount === 0 && onLeaveCount > 0) {
+                         workingEmployeesList.innerHTML = '<li class="text-gray-500">All selected are on leave.</li>';
+                    } else if (onLeaveCount === 0 && workingCount > 0) {
+                         onLeaveEmployeesList.innerHTML = '<li class="text-gray-500">No one on leave.</li>';
+                    }
                 }
 
                 const summaryChartCanvas = document.getElementById('summary-chart-canvas');
@@ -419,10 +524,14 @@
                 const workingPercentage = totalEmployees > 0 ? (workingCount / totalEmployees) * 100 : 0;
                 const onLeavePercentage = totalEmployees > 0 ? (onLeaveCount / totalEmployees) * 100 : 0;
 
+                const chartTitle = isGeneralHoliday 
+                    ? `Status for ${selectedDateStr} (Holiday)` 
+                    : `Status for ${selectedDateStr} - ${totalEmployees} Employee(s) Selected`;
+
                 summaryChart = new Chart(summaryChartCanvas, {
                     type: summaryChartType,
                     data: {
-                        labels: [`Working (${workingCount})`, `On Week Off (${onLeaveCount})`],
+                        labels: [`Working (${workingCount})`, `On Leave (${onLeaveCount})`],
                         datasets: [{
                             label: 'Employee Status',
                             data: [workingPercentage, onLeavePercentage],
@@ -435,40 +544,20 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { 
-                                position: 'bottom' 
-                            },
-                            title: {
-                                display: true,
-                                text: `Status for ${selectedDateStr} - ${totalEmployees} Employee(s) Selected`,
-                                font: { size: 16 }
-                            },
+                            legend: { position: 'bottom' },
+                            title: { display: true, text: chartTitle, font: { size: 16 } },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed !== null) {
-                                            label += `${context.parsed.toFixed(1)}%`;
-                                        }
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += `${context.parsed.toFixed(1)}%`;
                                         return label;
                                     }
                                 }
                             }
                         },
-                        scales: summaryChartType === 'bar' ? {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                ticks: {
-                                    callback: function(value) {
-                                        return value + '%';
-                                    }
-                                }
-                            }
-                        } : {}
+                        scales: summaryChartType === 'bar' ? { y: { beginAtZero: true, max: 100, ticks: { callback: value => value + '%' } } } : {}
                     }
                 });
             }
@@ -522,4 +611,3 @@
     </script>
 </body>
 </html>
-
